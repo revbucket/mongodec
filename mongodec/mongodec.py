@@ -2,12 +2,13 @@
 """ Authentication and host information for connecting to dashboard database """
 
 from pymongo import MongoClient
-from utilities.database.db_config import Changeling
+#from utilities.database.db_config import Changeling
 import os
 import inspect
 import time
+from pymongo.collection import Collection
 from pymongo.errors import NetworkTimeout, ConnectionFailure
-
+import json
 
 '''
 ###############################################################################
@@ -22,33 +23,41 @@ class Changeling(object):
         one to easily overwrite any method, but maintain standard behavior for
         undecorated methods.
     """
-    def __init__(self, base_object):
+    def __init__(self, base_object, cdict=None):
         self.base_object = base_object
         self.no_wrap_all = False
+        self.cdict = cdict or {}
         self.class_prefix = self.base_object.__class__.__name__
 
     def __getattr__(self, name):
         methods = self.class_prefix + '_methods'
-        if self.cdict.get(methods, {}).get(name) is not None:
+        if not callable(getattr(self.base_object, name)):
+            return getattr(self.base_object, name)
+
+        elif self.cdict.get(methods, {}).get(name) is not None:
             func = self.cdict[methods][name]
             def wrapper(*args, **kwargs):
-                if kwargs.pop('no_changeling'):
+                if kwargs.pop('no_changeling', False):
                     return getattr(self.base_object, name)(*args, **kwargs)
-                callargs = convert_arg_soup(*args, **kwargs)
-
-                return func(getattr(self.base_object, name), cdict, callargs)
+                callargs = convert_arg_soup(getattr(self.base_object, name),
+                                            *args, **kwargs)
+                return func(getattr(self.base_object, name), cdict=self.cdict,
+                            callargs=callargs)
 
         else:
             def wrapper(*args, **kwargs):
                 return getattr(self.base_object, name)(*args, **kwargs)
 
-        if self.cdict.get('_wrap_all') is not None and self.no_wrap_all:
+        if (self.cdict.get(self.class_prefix + '_wrap_all') is not None and
+            not self.no_wrap_all):
+            wrap_all = self.cdict[self.class_prefix + '_wrap_all']
             def final_wrapper(*args, **kwargs):
                 if kwargs.get('no_changeling'):
                     return wrapper(*args, **kwargs)
                 else:
-                    callargs = convert_arg_soup(*args, **kwargs)
-                    return self.cdict['_wrap_all'](wrapper, cdict, callargs)
+                    callargs = convert_arg_soup(getattr(self.base_object, name),
+                                                *args, **kwargs)
+                    return wrap_all(wrapper, self.cdict, callargs)
         else:
             final_wrapper = wrapper
 
@@ -116,68 +125,78 @@ class MongoConfig(object):
 
     def db(self):
         """Returns a pymongo Database instance"""
-        return self.client()[self.database]
+
+        if self.environ_var is not None:
+            database = json.loads(os.environ.get(self.environ_var))['database']
+        else:
+            database = self.database
+        return self.client()[database]
 
 
-'''
+
 ##############################################################################
 #                                                                            #
-#                               MONGO DECORATOR                              #
+#                           FILTER MONGO STUFF                               #
 #                                                                            #
 ##############################################################################
-'''
-class ChangelingMongoDB(Changeling):
+
+class FilterMongoDB(Changeling):
     """ Wrapper for mongoDB object.
         Supports accessing collections using the .property or the ['indexing']
         accessors. Returns ChangelingCollections everywhere
     """
-    def __init__(self, base_object, cdict=None):
+    def __init__(self, base_object, _filter=None):
         super(self.__class__, self).__init__(base_object)
-        self.cdict = cdict
-        self.class_prefix = self.base_object.__class_.__name__
+        self._filter = _filter
 
     def __getattr__(self, name):
         if isinstance(getattr(self.base_object, name), Collection):
             collection_obj = self.base_object[name]
-            return ChangelingCollection(collection_obj,
-                                         cdict=self.cdict)
+            return FilterCollection(collection_obj, _filter=self._filter)
         elif name in ['create_collection', 'get_collection']:
             def wrapper(*args, **kwargs):
                 collection_obj = getattr(self.base_object, name)(*args,
                                                                  **kwargs)
-                return ChangelingCollection(collection_obj, cdict=self.cdict)
+                return FilterCollection(collection_obj, _filter=self._filter)
             return wrapper
         else:
             return super(self.__class__, self).__getattr__(name)
 
     def __getitem__(self, collection_name):
         collection_obj = self.base_object[collection_name]
-        return ChangelingCollection(collection_obj, cdict=self.cdict)
+        return FilterCollection(collection_obj, _filter=self._filter)
+
 
 
 class FilterCollection(Changeling):
+
     def __init__(self, base_object, _filter=None):
         super(self.__class__, self).__init__(base_object)
         self._filter = _filter
 
-    ######################################################################
-    #   STATIC CLASS INSTANTIATION BLOCK                                 #
-    ######################################################################
+        method_dict = {}
+        self.cdict['%s_methods' % self.class_prefix] = method_dict
+        self.cdict['update_filter'] = _filter
 
-    self.cdict['_methods'] = {}
-    for method in ['count', 'replace_one', 'update_one', 'update_many',
-                   'delete_one', 'delete_many',
-                   'find_one_and_delete', 'find_one_and_replace',
-                   'find_one_and_update', 'distinct']:
-        self.cdict['_methods'][method] = replace_arg('filter', self.cdict,
-                                                     update_filter)
-    self.cdict['_methods']['update'] = replace_arg('spec', self.cdict,
-                                                   build_filter)
-    self.cdict['_methods']['update'] = replace_arg('remove', self.cdict,
-                                                   update_filter)
-    self.cdict['_methods']['aggregate'] = replace_arg('pipeline', self.cdict,
-                                                      modify_agg_pipeline)
-    self.cdict['_wrap_all'] = mongo_timeout_wrap
+        for method in ['count', 'replace_one', 'update_one', 'update_many',
+                       'delete_one', 'delete_many',
+                       'find_one_and_delete', 'find_one_and_replace',
+                       'find_one_and_update', 'distinct']:
+
+            method_dict[method] = replace_arg('filter', update_filter,
+                                              cdict=self.cdict)
+
+            method_dict['update'] = replace_arg('spec', update_filter,
+                                                cdict=self.cdict)
+            method_dict['remove'] = replace_arg('spec_or_id',
+                                                update_filter,
+                                                cdict=self.cdict)
+            method_dict['aggregate'] = replace_arg('pipeline',
+                                                   modify_agg_pipeline,
+                                                   cdict=self.cdict)
+            method_dict['group'] = replace_arg('condition', update_filter,
+                                               cdict=self.cdict)
+        self.cdict['%s_wrap_all' % self.class_prefix] = mongo_timeout_wrap
 
     ######################################################################
     #   Wrappers and weird overwrite methods                             #
@@ -189,7 +208,9 @@ class FilterCollection(Changeling):
             args past *args, **kwargs
         """
         if not no_changeling:
-            _filter = update_filter(_filter, self.cdict)
+            _filter = update_filter('filter', self.cdict,
+                                    {'filter': _filter})['filter']
+
         return self.base_object.find(_filter, projection, **other_kwargs)
 
 
@@ -198,9 +219,10 @@ class FilterCollection(Changeling):
         """ Not handled by the getattr because the implementation doesn't name
             args past *args, **kwargs
         """
-
         if not no_changeling:
-            _filter = update_filter(_filter, self.cdict)
+            _filter = update_filter('filter', self.cdict,
+                                    {'filter': _filter})['filter']
+
         return self.base_object.find_one(_filter, projection, **other_kwargs)
 
 
@@ -211,8 +233,7 @@ class FilterCollection(Changeling):
         for more details
         """
         bulk_op = self.base_object.initialize_unordered_bulk_op(**kwargs)
-        return ChangelingMongoBulkOperationBuilder(bulk_op,
-                                                   composer_id=self.composer_id)
+        return FilterMongoBulkOperationBuilder(bulk_op, _filter=self._filter)
 
 
     def initialize_ordered_bulk_op(self, **kwargs):
@@ -221,27 +242,25 @@ class FilterCollection(Changeling):
         for more details
         """
         bulk_op = self.base_object.initialize_ordered_bulk_op(**kwargs)
-        return ChangelingMongoBulkOperationBuilder(bulk_op,
-                                                   composer_id=self.composer_id)
+        return FilterMongoBulkOperationBuilder(bulk_op, _filter=self._filter)
 
 
 
 
-class ChangelingMongoBulkOperationBuilder(Changeling):
-    def __init__(self, base_object, composer_id=None):
+class FilterMongoBulkOperationBuilder(Changeling):
+    def __init__(self, base_object, _filter=None):
         super(self.__class__, self).__init__(base_object)
-        self.composer_id = composer_id
+        self._filter = _filter
         self.no_wrap_all = True
 
-    def __getattr__(self, name):
-        def wrapper(*args, **kwargs):
-            return getattr(self.base_object, name)(*args, **kwargs)
 
-    def find(self, selector, no_composer_id=False, **other_kwargs):
-        if not no_composer_id:
-            selector = update_filter(selector, self.composer_id)
+    def find(self, selector, no_changeling=False, **other_kwargs):
+        if not no_changeling:
+            selector = update_filter('selector',
+                                     {'update_filter': self._filter},
+                                     {'selector': selector})['selector']
+
         return self.base_object.find(selector, **other_kwargs)
-
 
 
 
@@ -277,8 +296,8 @@ def convert_arg_soup(function, *args, **kwargs):
 
 
 def replace_arg(argname, replacer, cdict=None):
-    def wrapper(wrappee, callargs):
-        return wrappee(**replacer(argname, callargs, cdict=None))
+    def wrapper(wrappee, callargs, cdict=cdict):
+        return wrappee(**replacer(argname, cdict=cdict, callargs=callargs))
     return wrapper
 
 
@@ -296,18 +315,23 @@ def mongo_timeout_wrap(func, cdict, callargs):
             pass
             # I don't think we have to rebuild the connection here
 
-def modify_agg_pipeline(argname, cdict, callargs)
-    assert argname == 'pipeline'
 
-    callargs['pipeline'] = [{'$match': build_filter(cdict)}] +\
-                           callargs['pipeline']
+def modify_agg_pipeline(argname, cdict, callargs):
+    assert argname == 'pipeline'
+    callargs['pipeline'] = ([{'$match': update_filter(argname, cdict,
+                                                      {argname: None})[argname]}
+                            ] + callargs['pipeline'])
+
     return callargs
+
 
 def update_filter(argname, cdict, callargs):
     """ Updates a mongo query to include self.composer_id.
-    If _filter is None, we just do {composer_id: composer_id}
+    If _filter is None, we just use the cdict's update_filter kwargs
     If _filter is a dict and doesn't include composer_id, we add it in
     If _filter is not a dict, we assume it's a spec for the _id
+
+    Modifies the callargs argument, but also returns the new callargs
     """
     filter_kwargs = cdict.get('update_filter') or {}
     _filter = callargs[argname]
@@ -315,10 +339,13 @@ def update_filter(argname, cdict, callargs):
         if _filter is None:
             _filter = {k: v}
         elif isinstance(_filter, dict):
-            _filter[k] = v
+            _filter[k] = _filter.get(k, v)
         else:
-            {'_id': _filter, k: v}
+            _filter = {'_id': _filter, k: v}
     callargs[argname] = _filter
+    return callargs
 
 
+def update_filter_direct(_filter, filter_kwargs):
+    pass
 
