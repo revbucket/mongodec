@@ -8,10 +8,11 @@
 # Setup namespace
 
 from changeling import Changeling
-from filter_mongo import FilterMongoDB, FilterCollection, \
-                                  FilterMongoBulkOperationBuilder
+from filter_mongo import FilterMongoDB, \
+                         FilterMongoCollection, \
+                         FilterMongoBulkOperationBuilder
 
-__version__ = '1.0.0.dev0'
+__version__ = '1.0.2'
 __all__ = [filter_mongo, mongodec]
 
 
