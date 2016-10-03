@@ -1,5 +1,4 @@
 MANIFEST.in
-README.rst
 setup.cfg
 setup.py
 mongodec/__init__.py

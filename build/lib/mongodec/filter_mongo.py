@@ -1,6 +1,5 @@
-from mongodec import Changeling, replace_arg, mongo_timeout_wrap, \
-                     modify_agg_pipeline, update_filter
-
+from mongodec import mongo_timeout_wrap, modify_agg_pipeline, update_filter
+from changeling import Changeling, replace_arg
 from pymongo.collection import Collection
 
 
@@ -32,9 +31,9 @@ class FilterMongoDB(Changeling):
 
 
 
-class FilterCollection(Changeling):
+class FilterMongoCollection(Changeling):
 
-    def __init__(self, base_object, _filter=None):
+    def __init__(self, base_object, _filter=None, timeout_wrap=True):
         super(self.__class__, self).__init__(base_object)
         self._filter = _filter
 
@@ -60,7 +59,8 @@ class FilterCollection(Changeling):
                                                    cdict=self.cdict)
             method_dict['group'] = replace_arg('condition', update_filter,
                                                cdict=self.cdict)
-        self.cdict['%s_wrap_all' % self.class_prefix] = mongo_timeout_wrap
+        if timeout_wrap:
+            self.cdict['%s_wrap_all' % self.class_prefix] = mongo_timeout_wrap
 
     ######################################################################
     #   Wrappers and weird overwrite methods                             #

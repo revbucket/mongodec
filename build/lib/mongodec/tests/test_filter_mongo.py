@@ -1,10 +1,13 @@
 """ Tests for filter_mongo.py """
 
 import unittest
-import mongodec as md
-import filter_mongo as fm
-from pymongo.collection import Collection
+import mongodec.mongodec as md
+import mongodec.filter_mongo as fm
 
+
+######################################################################
+#   Helper methods useful in tests                                   #
+######################################################################
 
 def get_local_mongo():
     return md.MongoConfig(user=None, password=None, database='local',
@@ -17,14 +20,14 @@ def drop_collections(mongo_db):
         except:
             pass
 
-def clear_db_decorator(test_function):
-    def wrapper(*args, **kwargs):
-        mongo_db = get_local_mongo()
-        drop_collections(mongo_db)
-        test_function(*args, **kwargs)
-        drop_collections(mongo_db)
-    return wrapper
 
+'''
+##############################################################################
+#                                                                            #
+#                           ACTUAL TEST CASE                                 #
+#                                                                            #
+##############################################################################
+'''
 
 class TestFilterMongo(unittest.TestCase):
 
@@ -53,17 +56,17 @@ class TestFilterMongo(unittest.TestCase):
         coll4 = filter_mongo.get_collection('collection_4')
 
         for i, coll in enumerate([coll1, coll2, coll3, coll4], start=1):
-            self.assertTrue(isinstance(coll, fm.FilterCollection))
+            self.assertTrue(isinstance(coll, fm.FilterMongoCollection))
             self.assertEqual(coll.name, 'collection_%s' % i)
             self.assertEqual(coll._filter, filt)
 
 
-    def test_FilterCollection_base(self):
+    def test_FilterMongoCollection_base(self):
         """ Just tests that we can build a filter collection object w/o err """
         config = md.MongoConfig(user=None, password=None, database='local',
                                 host='localhost', port=27017)
         coll = config.db()['stamp_collection']
-        filter_coll = md.FilterCollection(coll, _filter={'foo': 'bar'})
+        filter_coll = fm.FilterMongoCollection(coll, _filter={'foo': 'bar'})
 
         self.assertEqual(filter_coll.name, coll.name)
         self.assertEqual(filter_coll.codec_options, coll.codec_options)
@@ -73,7 +76,7 @@ class TestFilterMongo(unittest.TestCase):
     #   Methods to test each of the filter operations                        #
     ##########################################################################
 
-    @clear_db_decorator
+
     def test_count(self):
         """ ChangelingMongoCollection.count """
         r_mongo_db = get_local_mongo()
@@ -102,7 +105,7 @@ class TestFilterMongo(unittest.TestCase):
 
         self.assertEqual(c_coll.count({'name': 'foobaz'}), 1)
 
-    @clear_db_decorator
+
     def test_replace_one(self):
         """ ChangelingMongoCollection.replace_one """
         r_mongo_db = get_local_mongo()
@@ -132,7 +135,7 @@ class TestFilterMongo(unittest.TestCase):
 
 
 
-    @clear_db_decorator
+
     def test_update_one(self):
         """ ChangelingMongoCollection.update_one """
         r_mongo_db = get_local_mongo()
@@ -159,7 +162,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertIsNone(r_coll.find_one({'val': 840}))
 
 
-    @clear_db_decorator
+
     def test_update_many(self):
         """ ChangelingMongoCollection.update_many """
         r_mongo_db = get_local_mongo()
@@ -189,7 +192,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertEqual(r_coll.count({'id': 'a'}), 0)
 
 
-    @clear_db_decorator
+
     def test_delete_one(self):
         """ ChangelingMongoCollection.delete_one """
         r_mongo_db = get_local_mongo()
@@ -215,7 +218,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertIsNone(r_coll.find_one({'val': 840}))
 
 
-    @clear_db_decorator
+
     def test_delete_many(self):
         """ ChangelingMongoCollection.delete_many """
 
@@ -247,7 +250,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertEqual(r_coll.count({'id': 'a'}), 0)
 
 
-    @clear_db_decorator
+
     def test_find_one_and_delete(self):
         """ ChangelingMongoCollection.find_one_and_delete """
 
@@ -281,7 +284,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertIsNone(r_coll.find_one({'val': 840}))
 
 
-    @clear_db_decorator
+
     def test_find_one_and_replace(self):
         """ ChangelingMongoCollection.find_one_and_replace """
 
@@ -319,7 +322,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertIsNone(r_coll.find_one({'val': 840}))
 
 
-    @clear_db_decorator
+
     def test_find_one_and_update(self):
         """ ChangelingMongoCollection.find_one_and_update """
 
@@ -352,7 +355,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertIsNone(r_coll.find_one({'val': 840}))
 
 
-    @clear_db_decorator
+
     def test_distinct(self):
         """ ChangelingMongoCollection.distinct """
 
@@ -387,7 +390,7 @@ class TestFilterMongo(unittest.TestCase):
                          ['a', 'c'])
 
 
-    @clear_db_decorator
+
     def test_update(self):
         """ ChangelingMongoCollection.update """
 
@@ -438,7 +441,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertEqual(r_coll.count({'id': 'a'}), 0)
 
 
-    @clear_db_decorator
+
     def test_remove(self):
         """ ChangelingMongoCollection.remove """
 
@@ -492,7 +495,7 @@ class TestFilterMongo(unittest.TestCase):
         self.assertEqual(r_coll.count({'id': 'a'}), 0)
 
 
-    @clear_db_decorator
+
     def test_aggregate(self):
         """ChangelingMongoCollection.find"""
 
@@ -524,7 +527,7 @@ class TestFilterMongo(unittest.TestCase):
                          [{'_id': 'a', 'count': 3}, {'_id': 'b', 'count': 2}])
 
 
-    @clear_db_decorator
+
     def test_find(self):
         """ChangelingMongoCollection.find"""
 
@@ -559,7 +562,7 @@ class TestFilterMongo(unittest.TestCase):
                          sorted(list(r_coll.find())))
 
 
-    @clear_db_decorator
+
     def test_find_one(self):
         """ChangelingMongoCollection.find_one"""
 
@@ -587,7 +590,7 @@ class TestFilterMongo(unittest.TestCase):
                          {'name': 'foobaz', 'id': 'c', 'val': 3})
 
 
-    @clear_db_decorator
+
     def test_bulkop(self):
         """FilterMongoBulkOperationBuilder """
         r_mongo_db = get_local_mongo()
@@ -621,4 +624,4 @@ class TestFilterMongo(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    main()
+    unittest.main()
