@@ -1,24 +1,86 @@
-A sample Python project
-=======================
+# Mongodec
 
-A sample project that exists as an aid to the `Python Packaging User Guide
-<https://packaging.python.org>`_'s `Tutorial on Packaging and Distributing
-Projects <https://packaging.python.org/en/latest/distributing.html>`_.
+# Overview
+Mongodec provides a generalizable wrapper class that can be extended to any python class and allows for easy overwrites and wrapping of methods. In this repo this has been used to implement an extension of `Pymongo` objects which covers a common use case of wishing to apply a filter to all database accesses.
 
-This projects does not aim to cover best practices for Python project
-development as a whole. For example, it does not provide guidance or tool
-recommendations for version control, documentation, or testing.
+# Setup
+The easiest way to install Mongodec would be to use pip: `pip install mongodec`. Though this repo can be cloned and you can build from source if you like.
 
-----
+# Example Usage
+In this section, I'll go briefly provide an example for how to use the `FilterMongo*` clasess to automatically apply filters to mongo queries.
+## Connecting to Mongo
+It is recommended that frequent accesses to mongo databases do so through the provided `MongoConfig` classes
+```
+from mongodec import MongoConfig
+import pymongo # just used for the assert
+config = MongoConfig(user='dev',
+                     password='foobar',
+                     host='some-host-example.mongodb.net',
+                     database='dbname',
+                     port=27017)
+mongo_db_obj = config.db()
+assert isinstance(mongo_db_obj, pymongo.database.Database)
+```
+## Building a filtered database
+All classes that extend Changeling take an instance of the object they're replicating as the instantiating argument, with potentially other arguments. Suppose we want to look at documents matching the filter `{'name': 'foobar', 'value': {'$gt': 10}}`. Then we can take a pymongo database object and build the filtered database:
+```
+from mongodec import FilterMongoDB
+mongo_db = ... #Some instance of pymongo.database.Database
+q_filter = {'name': 'foo', 'value': {'$gt': 10}}
+filter_mongo_obj = FilterMongoDB(mongo_db, q_filter)
 
-This is the README file for the project.
+# Examples -- insert some dummy data using pymongo's classes
+real_collection = mongo_db.collection_name
+real_collection.insert([{'name': 'foo', 'value': 4},
+                        {'name': 'foo', 'value': 12},
+                        {'name': 'bar', 'value': 100}])
 
-The file should use UTF-8 encoding and be written using ReStructured Text. It
-will be used to generate the project webpage on PyPI and will be displayed as
-the project homepage on common code-hosting services, and should be written for
-that purpose.
+# access the collection
+filter_collection = filter_mongo_obj['collection_name']
+filter_collection_2 = filter_mongo_obj.collection_name
+filter_collection_3 = filter_mongo_obj.get_collection('collection_name')
+assert filter_collection == filter_collection_2
+assert filter_collection == filter_collection_3
 
-Typical contents for this file would include an overview of the project, basic
-usage examples, etc. Generally, including the project changelog in here is not
-a good idea, although a simple "What's New" section for the most recent version
-may be appropriate.
+# operate as if filter_collection were a real collection
+assert filter_collection.count() == 1
+assert (filter_collection.find_one({}, {'_id': 0}}) ==
+        {'name': 'foo', 'value': 12})
+filter_collection.delete_many()
+assert real_collection.count() == 2
+assert filter_collection.count() == 0
+
+# can turn off the filter with the 'no_changeling' kwarg
+assert filter_collection.count(no_changeling=True) == 2
+```
+All applicable methods are wrapped appropriately, and we offer support for BulkOperations as well.
+
+# Extending your own Changeling classes
+I'll attach some brief documentation about how the `Changeling` class works, but more info is contained in mongodec/changeling.py and one can view the implementation of the `FilterMongo*` classes in mongodec/filter_mongo.py
+
+Any class C that extends Changeling should be viewed as a wrapper for another class B. Any instance of C should then take an instance of B as an instantiating argument. The instance of B inside C is known as the 'base object' and accessible through `C_instance.base_object`.
+
+Internally, each Changeling object keeps track of the wrapping methods with its property `cdict`. To wrap the `funky` method of class `Down2Get`, with the method `ultraFunky` then the `cdict` should look like this:
+```
+{'Down2Get_methods': {'funky': ultraFunky}}
+```
+
+If we want to wrap _every_ method of `Down2Get` with a method, say, `andTurnt`, the cdict will look like
+```
+{
+'Down2Get_methods': {'funky': ultraFunky},
+'Down2Get_wrap_all': andTurnt
+}
+```
+
+Any method that is tricky to wrap and should be overwritten directly can be done in class definition of `C`.
+
+Each wrapper method takes 3 arguments: func, cdict, and callargs.
+func is the function that is being wrapped. cdict is the cdict of the changeling instance, and callargs is a dictionary with _all_ arguments that func takes explicitly named.
+
+## Examples to help you with your own extensions
+A simple extension that demonstrates wrapping of individual methods and all methods is the test method 'test_changeling' in mongodec/tests/test_changeling.py
+
+A simple extension that demonstrates how to overwrite the methods of the base object is the `FilterMongoBulkOperationBuilder` located in mongodec/filter_mongo.py
+
+A more complicated example that encapsulates all the features of `Changeling` is the `FilterMongoCollection` class in mongodec/filter_mongo.py
