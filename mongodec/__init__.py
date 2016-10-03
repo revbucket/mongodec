@@ -12,7 +12,7 @@ from filter_mongo import FilterMongoDB, \
                          FilterMongoCollection, \
                          FilterMongoBulkOperationBuilder
 
-__version__ = '1.0.2'
+__version__ = '1.0.4'
 __all__ = [filter_mongo, mongodec]
 
 
