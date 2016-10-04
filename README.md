@@ -7,7 +7,7 @@ Mongodec provides a generalizable wrapper class that can be extended to any pyth
 The easiest way to install Mongodec would be to use pip: `pip install mongodec`. Though this repo can be cloned and you can build from source if you like.
 
 # Example Usage
-In this section, I'll go briefly provide an example for how to use the `FilterMongo*` clasess to automatically apply filters to mongo queries.
+In this section, I'll briefly provide an example for how to use the `FilterMongo*` clasess to automatically apply filters to mongo queries.
 ## Connecting to Mongo
 It is recommended that frequent accesses to mongo databases do so through the provided `MongoConfig` classes
 ```
