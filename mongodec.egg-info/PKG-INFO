@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: mongodec
-Version: 1.0.5
+Version: 1.0.6
 Summary: Wrapper classes with an application for Mongo
 Home-page: https://github.com/revbucket/mongodec
 Author: Matt Jordan
@@ -15,7 +15,7 @@ Description: # Mongodec
         The easiest way to install Mongodec would be to use pip: `pip install mongodec`. Though this repo can be cloned and you can build from source if you like.
         
         # Example Usage
-        In this section, I'll go briefly provide an example for how to use the `FilterMongo*` clasess to automatically apply filters to mongo queries.
+        In this section, I'll briefly provide an example for how to use the `FilterMongo*` clasess to automatically apply filters to mongo queries.
         ## Connecting to Mongo
         It is recommended that frequent accesses to mongo databases do so through the provided `MongoConfig` classes
         ```
@@ -92,6 +92,7 @@ Description: # Mongodec
         A simple extension that demonstrates how to overwrite the methods of the base object is the `FilterMongoBulkOperationBuilder` located in mongodec/filter_mongo.py
         
         A more complicated example that encapsulates all the features of `Changeling` is the `FilterMongoCollection` class in mongodec/filter_mongo.py
+        
 Keywords: wrapper mongo filter
 Platform: UNKNOWN
 Classifier: Development Status :: 5 - Production/Stable

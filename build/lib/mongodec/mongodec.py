@@ -55,18 +55,20 @@ class MongoConfig(object):
 
 
         user = config_dict.get('user')
-        password =config_dict.get('password')
-        host =config_dict.get('host')
-        port = config_dict.get('port')
-        database =config_dict.get('database')
-        replica_set =config_dict.get('replica_set', '')
+        password = config_dict.get('password')
+        host = config_dict.get('host')
+        port = config_dict.get('port', '')
+        database = config_dict.get('database')
+        replica_set = config_dict.get('replica_set', '')
 
+        if port != '':
+            port = ':%s/' % port
 
         if user is not None:
-            db_uri = 'mongodb://%s:%s@%s:%s/%s%s' % (user, password, host, port,
+            db_uri = 'mongodb://%s:%s@%s%s%s%s' % (user, password, host, port,
                                                      database, replica_set)
         else:
-            db_uri = 'mongodb://%s:%s/%s' % (host, port, database)
+            db_uri = 'mongodb://%s%s%s' % (host, port, database)
 
         return MongoClient(db_uri)
 
