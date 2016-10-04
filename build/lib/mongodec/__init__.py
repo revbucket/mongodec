@@ -7,12 +7,13 @@
 
 # Setup namespace
 
+from mongodec import MongoConfig
 from changeling import Changeling
 from filter_mongo import FilterMongoDB, \
                          FilterMongoCollection, \
                          FilterMongoBulkOperationBuilder
 
-__version__ = '1.0.4'
+__version__ = '1.0.5'
 __all__ = [filter_mongo, mongodec]
 
 

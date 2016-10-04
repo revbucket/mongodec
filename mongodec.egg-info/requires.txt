@@ -1,7 +1,7 @@
 pymongo
 
-[dev]
-check-manifest
-
 [test]
 coverage
+
+[dev]
+check-manifest
