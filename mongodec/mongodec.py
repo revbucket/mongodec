@@ -29,7 +29,8 @@ class MongoConfig(object):
 
     """
     def __init__(self, user=None, password=None, host=None, port=None,
-                 database=None, replica_set=None, environ_var=None):
+                 database=None, replica_set=None, environ_var=None,
+                 client_kwargs=None):
         """This class is just a wrapper for the above parameters"""
         self.user = user
         self.password = password
@@ -37,7 +38,7 @@ class MongoConfig(object):
         self.port = port
         self.database = database
         self.replica_set = replica_set
-
+        self.client_kwargs = client_kwargs
         # OR PASS AN ENV VAR
         self.environ_var = environ_var
 
@@ -70,7 +71,11 @@ class MongoConfig(object):
         else:
             db_uri = 'mongodb://%s/%s%s' % (host, port, database)
 
-        return MongoClient(db_uri)
+        return MongoClient(db_uri, **(self.client_kwargs or {}))
+
+    def modify_client_kwargs(self, new_kwargs):
+        """ Setter method for client_kwargs """
+        self.client_kwargs = new_kwargs
 
     def db(self):
         """Returns a pymongo Database instance"""

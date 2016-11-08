@@ -4,7 +4,7 @@ import unittest
 import mongodec.mongodec as md
 import os, json
 from pymongo.errors import NetworkTimeout, ConnectionFailure
-
+from pymongo import ReadPreference
 
 def get_local_mongo():
     return md.MongoConfig(user=None, password=None, database='local',
@@ -72,6 +72,16 @@ class TestMongodec(unittest.TestCase):
             del os.environ['foobar']
         else:
             os.environ['foobar'] = original_val
+
+
+    def test_MongoConfig_kwargs(self):
+        config = md.MongoConfig(user=None, password=None, database='local',
+                                host='localhost', port=27017,
+                                client_kwargs={'read_preference':
+                                               ReadPreference.SECONDARY})
+
+        mongo_db = config.db()
+        self.assertEqual(mongo_db.read_preference, ReadPreference.SECONDARY)
 
 
     '''
