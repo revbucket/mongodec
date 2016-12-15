@@ -13,7 +13,7 @@ from filter_mongo import FilterMongoDB, \
                          FilterMongoCollection, \
                          FilterMongoBulkOperationBuilder
 
-__version__ = '1.0.13'
+__version__ = '1.0.14'
 __all__ = [filter_mongo, mongodec]
 
 
