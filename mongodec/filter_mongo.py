@@ -15,19 +15,20 @@ class FilterMongoDB(Changeling):
     def __getattr__(self, name):
         if isinstance(getattr(self.base_object, name), Collection):
             collection_obj = self.base_object[name]
-            return FilterCollection(collection_obj, _filter=self._filter)
+            return FilterMongoCollection(collection_obj, _filter=self._filter)
         elif name in ['create_collection', 'get_collection']:
             def wrapper(*args, **kwargs):
                 collection_obj = getattr(self.base_object, name)(*args,
                                                                  **kwargs)
-                return FilterCollection(collection_obj, _filter=self._filter)
+                return FilterMongoCollection(collection_obj,
+                                             _filter=self._filter)
             return wrapper
         else:
             return super(self.__class__, self).__getattr__(name)
 
     def __getitem__(self, collection_name):
         collection_obj = self.base_object[collection_name]
-        return FilterCollection(collection_obj, _filter=self._filter)
+        return FilterMongoCollection(collection_obj, _filter=self._filter)
 
 
 
