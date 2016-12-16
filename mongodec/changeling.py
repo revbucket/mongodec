@@ -20,6 +20,9 @@ class Changeling(object):
         self.cdict = cdict or {}
         self.class_prefix = self.base_object.__class__.__name__
 
+    def __eq__(self, other):
+        return self.base_object == other.base_object
+
     def __getattr__(self, name):
         methods = self.class_prefix + '_methods'
         if not callable(getattr(self.base_object, name)):

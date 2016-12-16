@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: mongodec
-Version: 1.0.14
+Version: 1.0.15
 Summary: Wrapper classes with an application for Mongo
 Home-page: https://github.com/revbucket/mongodec
 Author: Matt Jordan

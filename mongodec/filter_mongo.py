@@ -30,6 +30,19 @@ class FilterMongoDB(Changeling):
         collection_obj = self.base_object[collection_name]
         return FilterMongoCollection(collection_obj, _filter=self._filter)
 
+    def drop_collection(self, collection_thing):
+        """ Drops a collection from the mongo db,
+        ARGS:
+            collection_thing - if this isn't a string of a collection name, is
+                               a collection-like object which has attribute
+                               'name', which is a string
+        RETURNS:
+            None
+        """
+        if isinstance(collection_thing, basestring):
+            return self.base_object.drop_collection(collection_thing)
+        else:
+            return self.base_object.drop_collection(collection_thing.name)
 
 
 class FilterMongoCollection(Changeling):
