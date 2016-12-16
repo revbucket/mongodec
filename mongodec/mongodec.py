@@ -114,9 +114,11 @@ def mongo_timeout_wrap(func, cdict, callargs):
 
 def modify_agg_pipeline(argname, cdict, callargs):
     assert argname == 'pipeline'
-    callargs['pipeline'] = ([{'$match': update_filter(argname, cdict,
-                                                      {argname: None})[argname]}
-                            ] + callargs['pipeline'])
+
+    new_step_0 = [{'$match': update_filter(argname, cdict,
+                                           {argname: None})[argname]}]
+    if new_step_0 != [{'$match': None}]:
+        callargs['pipeline'] = new_step_0 + callargs['pipeline']
 
     return callargs
 
